@@ -1,0 +1,102 @@
+#!/bin/bash
+
+cli=(docker)
+
+#
+# Source multiple files,
+#
+_source(){
+    while [ "$#" -gt 0 ]
+    do
+        f=${1}
+        shift 1
+        [ -f "${f}" ] && source ${f}
+    done
+}
+
+#
+# Print the help message
+#
+_usage(){
+    cat - <<EOH
+Usage:
+        $(basename $0) [options]
+
+Options:
+        --help, -h   Display this help message
+        --usage      Alias for the --help option
+
+        --project    Override the [01msonar.projectKey[00m property
+        --sources    Override the [01msonar.sources[00m property
+        --login      Override the [01msonar.login[00m property
+        --host       Override the [01msonar.host[00m property
+        --port       Override the [01msonar.port[00m property
+EOH
+}
+
+# Load default values from .sonarrc
+. $(realpath "$([ -L $0 ] && dirname $(readlink $0) || dirname $0)/../.sonarrc")
+
+port=${SONAR_PORT}
+rootdir=${SONAR_HOME}
+host=${SONAR_HOST}
+network=${SONAR_NETWORK}
+workdir=/src
+
+# Array for the sonar-scanner -D switches
+opts=()
+
+# Parse command-line arguments, and set variables accordingly
+while [ $# -gt 0 ]
+do
+    case $1 in
+        # Support passing options in the --option=value fashion
+        --*=*)
+            arg=$1
+            option=${arg%%=*}
+            value=${arg##*=}
+            shift 1
+            set -- ${option} ${value} $@
+            ;;
+        --help|-h|--usage)
+            _usage
+            exit 0
+            ;;
+        --project)
+            opts+=( -Dsonar.projectKey=$2 )
+            shift 2
+            ;;
+        --sources|--login)
+            name=${1##*--}
+            opts+=( -Dsonar.${name}=$2 )
+            shift 2
+            ;;
+        --host)
+            host=$2;
+            shift 2
+            ;;
+        --port)
+            port=$2;
+            shift 2
+            ;;
+        *)
+            echo "Unknown $1 option, skipping."
+            shift 1
+            ;;
+            
+    esac
+done
+
+cli+=(
+    run \
+    -it \
+    --rm \
+    -v $PWD:${workdir} \
+    -w ${workdir} \
+    --network ${network}
+    sonarsource/sonar-scanner-cli \
+    sonar-scanner \
+    -Dsonar.host.url=http://${host}:${port} \
+)
+
+${cli[@]} ${opts[@]}

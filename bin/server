@@ -1,0 +1,55 @@
+#!/bin/bash
+
+trap '[ -z "$is_logging" ] && _stop' INT TERM KILL
+
+# Load default values from .sonarrc
+. $(realpath "$([ -L $0 ] && dirname $(readlink $0) || dirname $0)/../.sonarrc")
+
+port=${SONAR_PORT}
+rootdir=${SONAR_HOME}
+hostname=${SONAR_HOST}
+network=${SONAR_NETWORK}
+
+_start(){
+    #local rootdir=$(realpath "$(dirname $0)/../var")
+    # Create the sonar network
+    docker network create ${network}
+    # Run the sonar server on the sonar network
+    docker \
+        run \
+        --rm \
+        --name ${hostname} \
+        -d \
+        -v ${rootdir}/data:/opt/sonarqube/data \
+        -v ${rootdir}/logs:/opt/sonarqube/logs \
+        -v ${rootdir}/extensions:/opt/sonarqube/extensions \
+        -p ${port}:${port} \
+        -e SONAR_WEB_PORT=${port} \
+        -e SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=1 \
+        --network ${network} \
+        sonarqube:lts
+}
+
+_stop(){
+    # Stop the sonar server
+    docker stop ${hostname}
+    # Remove the sonar network
+    docker network rm ${network}
+}
+
+_log(){
+    docker logs -f ${hostname}
+}
+
+case $1 in
+    start)
+        _start
+        ;;
+    stop)
+        _stop
+        ;;
+    log)
+        is_logging=1
+        _log
+        ;;
+esac

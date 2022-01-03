@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# Top-level dir for the persistent server data (ES storage, extensions, logs)
+# The full-path is calculated relatively to the scripts directory
+SONAR_HOME=$(realpath "$([ -L $0 ] && dirname $(readlink $0) || dirname $0)/../")/var
+
+# Listening port for the sonar server (internal & exposed)
+# We override Sonarqube's default 9000 port, since this port
+# is already in use on PHP applications running on FPM
+SONAR_PORT=9999
+
+# Docker internal hostname used for the sonar server
+SONAR_HOST=sonar-server
+
+# Docker internal network name
+SONAR_NETWORK=sonar
